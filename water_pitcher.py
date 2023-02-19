@@ -5,15 +5,12 @@ from math import ceil, gcd
 
 inf = sys.maxsize
 
-
-def heuristic(state, target, max_pitcher):
+def calc_heuristic(state, target, max_pitcher):
     diff = ceil(abs(target - state[-1][0]) * 2 // max_pitcher)
     return diff
 
 
-# Iterates through the pitchers
-# to find out every possible state
-# from the current state
+# Iterates through the pitchers to find out every possible state from the currrent state
 def get_next_state(state):
     for i, pitchers_i in enumerate(state):
         for j, pitchers_j in enumerate(state):
@@ -24,10 +21,12 @@ def get_next_state(state):
                 yield tuple(next_state)
 
 
-def print_path(came_from, state, f_score, g_score, h_score):
-    if came_from[state] != -1:
-        print_path(came_from, came_from[state], f_score, g_score, h_score)
-    print(state, "g=", g_score[state], "h=", h_score[state], "f=", f_score[state])
+def print_path(prev_state, state, f_n_dict, g_n_dict, h_n_dict):
+    if prev_state[state] != -1:
+        print_path(prev_state, prev_state[state], f_n_dict, g_n_dict, h_n_dict)
+        
+    print(">>> State at the last seach step:")
+    print(state)
 
 
 def A_star(pitchers, target):
@@ -35,42 +34,56 @@ def A_star(pitchers, target):
         return -1
     max_pitcher = max(pitchers)
     state = tuple([(inf, inf)] + [(0, capacity) for capacity in pitchers] + [(0, inf)])
-    f_score = {}
-    g_score = {}
-    h_score = {}
-    came_from = {state: -1}
-    h_score[state] = heuristic(state, target, max_pitcher)
-    g_score[state] = 0
-    f_score[state] = h_score[state] + g_score[state]
+    
+    
+    f_n_dict = {}
+    g_n_dict = {}
+    h_n_dict = {}
+    prev_state = {state: -1}
+    
+    
+    h_n_dict[state] = calc_heuristic(state, target, max_pitcher)
+    g_n_dict[state] = 0
+    f_n_dict[state] = h_n_dict[state] + g_n_dict[state]
+    
+    
     closed_set = set()
     open_set = []
     heapq.heapify(open_set)
-    heapq.heappush(open_set, (f_score[state], h_score[state], state))
+    heapq.heappush(open_set, (f_n_dict[state], h_n_dict[state], state))
     state_no = 0
     while len(open_set) > 0:
-        _, _, cur = heapq.heappop(open_set)
-        print(cur, "g=", g_score[cur], "h=", h_score[cur], "f=", f_score[cur])
-        if cur[-1][0] == target:
-            print('Number of states evaluated: ', state_no)
-            print_path(came_from, cur, f_score, g_score, h_score)
-            return g_score[cur]
-        closed_set.add(cur)
-        for next_state in get_next_state(cur):
+        _, _, curr = heapq.heappop(open_set)
+        
+        print(f">>> Current state: {curr}")
+        print("Distances at the current state:")
+        print("g(n) = ", g_n_dict[curr], "\nh(n) = ", h_n_dict[curr], "\nf(n) = ", f_n_dict[curr])
+        
+        if curr[-1][0] == target:
+            print('>>> Target reached! \nNumber of states evaluated: ', state_no)
+            print_path(prev_state, curr, f_n_dict, g_n_dict, h_n_dict)
+            
+            return g_n_dict[curr]
+        
+        
+        closed_set.add(curr)
+        for next_state in get_next_state(curr):
             if not next_state in closed_set:
-                g_tentative = g_score[cur] + 1
-                if g_tentative < g_score.get(next_state, inf):
+                g_tentative = g_n_dict[curr] + 1
+                if g_tentative < g_n_dict.get(next_state, inf):
                     try:
-                        idx = open_set.index((f_score.get(next_state), h_score.get(next_state), next_state))
+                        idx = open_set.index((f_n_dict.get(next_state), h_n_dict.get(next_state), next_state))
                         open_set[idx] = open_set[-1]
                         open_set.pop()
                         heapq.heapify(open_set)
                     except:
                         pass
-                    g_score[next_state] = g_tentative
-                    h_score[next_state] = heuristic(next_state, target, max_pitcher)
-                    f_score[next_state] = g_score[next_state] + h_score[next_state]
-                    came_from[next_state] = cur
-                    heapq.heappush(open_set, (f_score[next_state], h_score[next_state], next_state))
+                    g_n_dict[next_state] = g_tentative
+                    h_n_dict[next_state] = calc_heuristic(next_state, target, max_pitcher)
+                    f_n_dict[next_state] = g_n_dict[next_state] + h_n_dict[next_state]
+                    prev_state[next_state] = curr
+                    
+                    heapq.heappush(open_set, (f_n_dict[next_state], h_n_dict[next_state], next_state))
         state_no = state_no + 1
 
 
@@ -79,4 +92,4 @@ if __name__ == '__main__':
     pitchers = list(map(int, file.readline().split(',')))
     target = int(file.readline())
     file.close()
-    print("The lowest number of steps required: " + A_star(pitchers, target))
+    print("The lowest number of steps required:", A_star(pitchers, target))
